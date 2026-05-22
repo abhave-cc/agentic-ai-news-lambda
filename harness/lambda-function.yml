@@ -1,5 +1,3 @@
 functionName: agentic-ai-news-lambda
-runtime: python3.12
-handler: not-used
 memorySize: 512
 timeout: 30
