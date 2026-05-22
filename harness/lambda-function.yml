@@ -1,0 +1,5 @@
+functionName: agentic-ai-news-lambda
+runtime: container
+handler: not-used
+memorySize: 512
+timeout: 30
