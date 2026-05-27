@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentic News Research Assistant</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">AWS Bedrock + Lambda + GNews</p>
+      <h1>Agentic News Research Assistant</h1>
+      <p class="subtitle">
+        Enter a topic and let the Lambda-based agent fetch live news, reason over it with Nova Lite, and return a structured research summary.
+      </p>
+    </section>
+
+    <section class="card">
+      <label for="topic">Research topic</label>
+      <input id="topic" type="text" value="agentic AI" />
+
+      <label for="maxResults">Number of source articles</label>
+      <select id="maxResults">
+        <option value="3" selected>3</option>
+        <option value="5">5</option>
+        <option value="7">7</option>
+      </select>
+
+      <button id="runButton">Run research agent</button>
+
+      <p id="status" class="status"></p>
+    </section>
+
+    <section id="results" class="results hidden">
+      <h2>Research Summary</h2>
+      <p id="summary"></p>
+
+      <div class="grid">
+        <div>
+          <h3>Key Themes</h3>
+          <ul id="themes"></ul>
+        </div>
+        <div>
+          <h3>Risks</h3>
+          <ul id="risks"></ul>
+        </div>
+        <div>
+          <h3>Opportunities</h3>
+          <ul id="opportunities"></ul>
+        </div>
+        <div>
+          <h3>Follow-up Questions</h3>
+          <ul id="questions"></ul>
+        </div>
+      </div>
+
+      <h3>Source Articles</h3>
+      <ul id="articles" class="articles"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
