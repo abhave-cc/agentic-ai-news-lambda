@@ -47,6 +47,20 @@ def fetch_news(topic: str, max_results: int = 5) -> list:
     return response.json().get("articles", [])
 
 
+def parse_model_json(output_text: str) -> dict:
+    clean_output = output_text.strip()
+
+    if "```json" in clean_output:
+        clean_output = clean_output.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif "```" in clean_output:
+        clean_output = clean_output.split("```", 1)[1].split("```", 1)[0].strip()
+
+    try:
+        return json.loads(clean_output)
+    except json.JSONDecodeError:
+        return {"raw_model_output": output_text}
+
+
 def summarise_with_nova(topic: str, articles: list) -> dict:
     article_text = "\n\n".join(
         [
@@ -91,22 +105,7 @@ follow_up_questions: list of strings
 
     output_text = response["output"]["message"]["content"][0]["text"]
 
-    clean_output = output_text.strip()
-
-    if clean_output.startswith("```json"):
-        clean_output = clean_output.removeprefix("```json").strip()
-
-    if clean_output.startswith("```"):
-        clean_output = clean_output.removeprefix("```").strip()
-
-    if clean_output.endswith("```"):
-        clean_output = clean_output.removesuffix("```").strip()
-
-    try:
-        return json.loads(clean_output)
-    except json.JSONDecodeError:
-        return {"raw_model_output": output_text}
-
+    return parse_model_json(output_text)
 
 def parse_event_body(event) -> dict:
     body = event.get("body")
