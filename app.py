@@ -3,7 +3,7 @@ import os
 import boto3
 import requests
 
-GNEWS_API_KEY = os.environ.get("GNEWS_API_KEY")
+GNEWS_API_KEY = os.environ.get("GNEWS_SECRET_NAME")
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "eu-west-2")
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0")
 
