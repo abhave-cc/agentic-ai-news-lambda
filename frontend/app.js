@@ -1,4 +1,4 @@
-const AGENT_ENDPOINT = "PASTE_YOUR_LAMBDA_FUNCTION_URL_HERE";
+const AGENT_ENDPOINT = "https://q63t7rkpq3r2fyxutwcwl2r5i40ehgkg.lambda-url.eu-west-2.on.aws/";
 
 const runButton = document.getElementById("runButton");
 const statusEl = document.getElementById("status");
