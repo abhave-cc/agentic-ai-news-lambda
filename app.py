@@ -1,66 +1,110 @@
 import json
 import os
-from functools import lru_cache
-
 import boto3
 import requests
 
+GNEWS_API_KEY = os.environ.get("GNEWS_API_KEY")
+BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "eu-west-2")
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0")
 
-@lru_cache(maxsize=1)
-def get_gnews_api_key() -> str:
-    secret_name = os.environ.get("GNEWS_SECRET_NAME", "agentic-ai/gnews")
-    region_name = os.environ.get("AWS_REGION", "eu-west-2")
-
-    client = boto3.client("secretsmanager", region_name=region_name)
-    response = client.get_secret_value(SecretId=secret_name)
-
-    secret = json.loads(response["SecretString"])
-    return secret["GNEWS_API_KEY"]
+bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
 
 
-def search_gnews(query: str, api_key: str, max_results: int = 5) -> dict:
-    response = requests.get(
-        "https://gnews.io/api/v4/search",
-        params={
-            "q": query,
-            "lang": "en",
-            "country": "gb",
-            "max": max_results,
-            "apikey": api_key,
-        },
-        timeout=10,
+def fetch_news(topic: str, max_results: int = 5):
+    url = "https://gnews.io/api/v4/search"
+    params = {
+        "q": topic,
+        "lang": "en",
+        "max": max_results,
+        "apikey": GNEWS_API_KEY,
+    }
+
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+    return response.json().get("articles", [])
+
+
+def summarise_with_nova(topic: str, articles: list):
+    article_text = "\n\n".join(
+        [
+            f"Title: {a.get('title', '')}\n"
+            f"Description: {a.get('description', '')}\n"
+            f"Source: {a.get('source', {}).get('name', '')}\n"
+            f"URL: {a.get('url', '')}"
+            for a in articles
+        ]
     )
 
-    response.raise_for_status()
-    return response.json()
+    prompt = f"""
+You are a concise research assistant.
 
+Topic: {topic}
 
-def lambda_handler(event, context):
-    query = event.get("query", "artificial intelligence")
+News articles:
+{article_text}
+
+Return valid JSON only with these fields:
+summary: string
+key_themes: list of strings
+risks: list of strings
+opportunities: list of strings
+follow_up_questions: list of strings
+"""
+
+    response = bedrock.converse(
+        modelId=MODEL_ID,
+        messages=[
+            {
+                "role": "user",
+                "content": [{"text": prompt}],
+            }
+        ],
+        inferenceConfig={
+            "maxTokens": 800,
+            "temperature": 0.3,
+            "topP": 0.9,
+        },
+    )
+
+    output_text = response["output"]["message"]["content"][0]["text"]
 
     try:
-        api_key = get_gnews_api_key()
-        data = search_gnews(query, api_key)
+        return json.loads(output_text)
+    except json.JSONDecodeError:
+        return {"raw_model_output": output_text}
 
-        articles = data.get("articles", [])
 
-        results = [
-            {
-                "title": article.get("title"),
-                "source": article.get("source", {}).get("name"),
-                "url": article.get("url"),
-                "publishedAt": article.get("publishedAt"),
-            }
-            for article in articles
-        ]
+def handler(event, context):
+    try:
+        body = event.get("body")
+
+        if isinstance(body, str):
+            body = json.loads(body)
+        elif not body:
+            body = event
+
+        topic = body.get("topic", "agentic AI")
+        max_results = int(body.get("max_results", 5))
+
+        articles = fetch_news(topic, max_results)
+        ai_summary = summarise_with_nova(topic, articles)
 
         return {
             "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
             "body": json.dumps(
                 {
-                    "query": query,
-                    "count": len(results),
-                    "articles": results,
+                    "topic": topic,
+                    "model": MODEL_ID,
+                    "summary": ai_summary,
+                    "source_articles": [
+                        {
+                            "title": a.get("title"),
+                            "source": a.get("source", {}).get("name"),
+                            "url": a.get("url"),
+                        }
+                        for a in articles
+                    ],
                 }
             ),
         }
@@ -68,5 +112,6 @@ def lambda_handler(event, context):
     except Exception as e:
         return {
             "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"error": str(e)}),
         }
