@@ -82,7 +82,12 @@ runButton.addEventListener("click", async () => {
       throw new Error(payload.error || "Agent request failed");
     }
 
-    const body = typeof payload.body === "string" ? JSON.parse(payload.body) : payload;
+    // const body = typeof payload.body === "string" ? JSON.parse(payload.body) : payload;
+    const body =
+      typeof payload.body === "string"
+        ? JSON.parse(payload.body)
+        : payload.body || payload;
+    
     const summary = body.summary || {};
 
     document.getElementById("summary").textContent =
