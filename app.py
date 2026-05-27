@@ -1,22 +1,45 @@
 import json
 import os
+
 import boto3
 import requests
 
-GNEWS_API_KEY = os.environ.get("GNEWS_SECRET_NAME")
+
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "eu-west-2")
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0")
+GNEWS_SECRET_NAME = os.environ.get("GNEWS_SECRET_NAME", "agentic-ai/gnews")
 
 bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+secretsmanager = boto3.client("secretsmanager", region_name=BEDROCK_REGION)
 
 
-def fetch_news(topic: str, max_results: int = 5):
+def get_gnews_api_key() -> str:
+    secret = secretsmanager.get_secret_value(SecretId=GNEWS_SECRET_NAME)
+    secret_string = secret["SecretString"]
+
+    try:
+        secret_json = json.loads(secret_string)
+        api_key = (
+            secret_json.get("GNEWS_API_KEY")
+            or secret_json.get("api_key")
+            or secret_json.get("apikey")
+        )
+        if not api_key:
+            raise ValueError("GNews API key not found in secret JSON.")
+        return api_key
+    except json.JSONDecodeError:
+        return secret_string
+
+
+def fetch_news(topic: str, max_results: int = 5) -> list:
+    api_key = get_gnews_api_key()
+
     url = "https://gnews.io/api/v4/search"
     params = {
         "q": topic,
         "lang": "en",
         "max": max_results,
-        "apikey": GNEWS_API_KEY,
+        "apikey": api_key,
     }
 
     response = requests.get(url, params=params, timeout=10)
@@ -24,14 +47,14 @@ def fetch_news(topic: str, max_results: int = 5):
     return response.json().get("articles", [])
 
 
-def summarise_with_nova(topic: str, articles: list):
+def summarise_with_nova(topic: str, articles: list) -> dict:
     article_text = "\n\n".join(
         [
-            f"Title: {a.get('title', '')}\n"
-            f"Description: {a.get('description', '')}\n"
-            f"Source: {a.get('source', {}).get('name', '')}\n"
-            f"URL: {a.get('url', '')}"
-            for a in articles
+            f"Title: {article.get('title', '')}\n"
+            f"Description: {article.get('description', '')}\n"
+            f"Source: {article.get('source', {}).get('name', '')}\n"
+            f"URL: {article.get('url', '')}"
+            for article in articles
         ]
     )
 
@@ -74,14 +97,21 @@ follow_up_questions: list of strings
         return {"raw_model_output": output_text}
 
 
+def parse_event_body(event) -> dict:
+    body = event.get("body")
+
+    if isinstance(body, str):
+        return json.loads(body)
+
+    if isinstance(body, dict):
+        return body
+
+    return event
+
+
 def handler(event, context):
     try:
-        body = event.get("body")
-
-        if isinstance(body, str):
-            body = json.loads(body)
-        elif not body:
-            body = event
+        body = parse_event_body(event)
 
         topic = body.get("topic", "agentic AI")
         max_results = int(body.get("max_results", 5))
@@ -99,19 +129,19 @@ def handler(event, context):
                     "summary": ai_summary,
                     "source_articles": [
                         {
-                            "title": a.get("title"),
-                            "source": a.get("source", {}).get("name"),
-                            "url": a.get("url"),
+                            "title": article.get("title"),
+                            "source": article.get("source", {}).get("name"),
+                            "url": article.get("url"),
                         }
-                        for a in articles
+                        for article in articles
                     ],
                 }
             ),
         }
 
-    except Exception as e:
+    except Exception as error:
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"error": str(e)}),
+            "body": json.dumps({"error": str(error)}),
         }
