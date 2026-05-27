@@ -1,44 +1,53 @@
 import json
 
-from app import lambda_handler
+from app import handler
 
 
-def test_lambda_handler_returns_articles_when_gnews_mocked(monkeypatch):
-    monkeypatch.setattr("app.get_gnews_api_key", lambda: "dummy-key")
+def test_handler_returns_ai_summary_when_dependencies_mocked(monkeypatch):
+    monkeypatch.setattr(
+        "app.fetch_news",
+        lambda topic, max_results: [
+            {
+                "title": "Test article",
+                "description": "Test description",
+                "source": {"name": "Test Source"},
+                "url": "https://example.com",
+            }
+        ],
+    )
 
     monkeypatch.setattr(
-        "app.search_gnews",
-        lambda query, api_key: {
-            "articles": [
-                {
-                    "title": "Test article",
-                    "source": {"name": "Test Source"},
-                    "url": "https://example.com",
-                    "publishedAt": "2026-01-01T00:00:00Z",
-                }
-            ]
+        "app.summarise_with_nova",
+        lambda topic, articles: {
+            "summary": "Test summary",
+            "key_themes": ["Theme 1"],
+            "risks": ["Risk 1"],
+            "opportunities": ["Opportunity 1"],
+            "follow_up_questions": ["Question 1"],
         },
     )
 
-    response = lambda_handler({"query": "aws"}, None)
+    response = handler({"topic": "aws", "max_results": 1}, None)
 
     assert response["statusCode"] == 200
 
     body = json.loads(response["body"])
 
-    assert body["query"] == "aws"
-    assert body["count"] == 1
-    assert body["articles"][0]["title"] == "Test article"
+    assert body["topic"] == "aws"
+    assert body["summary"]["summary"] == "Test summary"
+    assert body["source_articles"][0]["title"] == "Test article"
+    assert body["source_articles"][0]["source"] == "Test Source"
 
 
-def test_lambda_handler_handles_errors(monkeypatch):
-    monkeypatch.setattr("app.get_gnews_api_key", lambda: "dummy-key")
-
-    def broken_search(query, api_key):
+def test_handler_handles_errors(monkeypatch):
+    def broken_fetch_news(topic, max_results):
         raise Exception("GNews failed")
 
-    monkeypatch.setattr("app.search_gnews", broken_search)
+    monkeypatch.setattr("app.fetch_news", broken_fetch_news)
 
-    response = lambda_handler({"query": "aws"}, None)
+    response = handler({"topic": "aws", "max_results": 1}, None)
 
     assert response["statusCode"] == 500
+
+    body = json.loads(response["body"])
+    assert "GNews failed" in body["error"]
