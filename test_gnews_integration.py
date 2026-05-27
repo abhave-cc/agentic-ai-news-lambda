@@ -1,23 +1,15 @@
-import os
 import pytest
 
-from app import search_gnews
+from app import fetch_news
 
 
 @pytest.mark.integration
-def test_gnews_api_returns_real_articles():
-    api_key = os.environ.get("GNEWS_API_KEY")
+def test_fetch_news_returns_real_articles():
+    articles = fetch_news("technology", max_results=3)
 
-    if not api_key:
-        pytest.skip("GNEWS_API_KEY not provided")
+    print(articles)
 
-    data = search_gnews("technology", api_key, max_results=3)
-
-    print(data)
-
-    articles = data.get("articles", [])
-
-    assert len(articles) > 0, f"No articles returned. Response was: {data}"
+    assert len(articles) > 0, "No articles returned"
 
     assert articles[0].get("title")
     assert articles[0].get("url")
