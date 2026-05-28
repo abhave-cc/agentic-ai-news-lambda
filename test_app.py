@@ -18,13 +18,23 @@ def test_handler_returns_ai_summary_when_dependencies_mocked(monkeypatch):
 
     monkeypatch.setattr(
         "app.summarise_with_nova",
-        lambda topic, articles: {
-            "summary": "Test summary",
-            "key_themes": ["Theme 1"],
-            "risks": ["Risk 1"],
-            "opportunities": ["Opportunity 1"],
-            "follow_up_questions": ["Question 1"],
-        },
+        lambda topic, articles: (
+            {
+                "summary": "Test summary",
+                "key_themes": ["Theme 1"],
+                "risks": ["Risk 1"],
+                "opportunities": ["Opportunity 1"],
+                "enterprise_recommendations": ["Recommendation 1"],
+                "follow_up_questions": ["Question 1"],
+            },
+            [
+                {
+                    "document": "docs/test.md",
+                    "score": 0.91,
+                    "text": "Test RAG context",
+                }
+            ],
+        ),
     )
 
     response = handler({"topic": "aws", "max_results": 1}, None)
@@ -36,7 +46,7 @@ def test_handler_returns_ai_summary_when_dependencies_mocked(monkeypatch):
     assert body["topic"] == "aws"
     assert body["summary"]["summary"] == "Test summary"
     assert body["source_articles"][0]["title"] == "Test article"
-    assert body["source_articles"][0]["source"] == "Test Source"
+    assert body["rag_context"][0]["document"] == "docs/test.md"
 
 
 def test_handler_handles_errors(monkeypatch):
