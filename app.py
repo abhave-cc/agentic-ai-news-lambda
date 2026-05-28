@@ -4,6 +4,8 @@ import os
 import boto3
 import requests
 
+from rag import retrieve_context
+
 
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "eu-west-2")
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0")
@@ -24,9 +26,12 @@ def get_gnews_api_key() -> str:
             or secret_json.get("api_key")
             or secret_json.get("apikey")
         )
+
         if not api_key:
             raise ValueError("GNews API key not found in secret JSON.")
+
         return api_key
+
     except json.JSONDecodeError:
         return secret_string
 
@@ -44,6 +49,7 @@ def fetch_news(topic: str, max_results: int = 5) -> list:
 
     response = requests.get(url, params=params, timeout=10)
     response.raise_for_status()
+
     return response.json().get("articles", [])
 
 
@@ -51,9 +57,19 @@ def parse_model_json(output_text: str) -> dict:
     clean_output = output_text.strip()
 
     if "```json" in clean_output:
-        clean_output = clean_output.split("```json", 1)[1].split("```", 1)[0].strip()
+        clean_output = (
+            clean_output
+            .split("```json", 1)[1]
+            .split("```", 1)[0]
+            .strip()
+        )
     elif "```" in clean_output:
-        clean_output = clean_output.split("```", 1)[1].split("```", 1)[0].strip()
+        clean_output = (
+            clean_output
+            .split("```", 1)[1]
+            .split("```", 1)[0]
+            .strip()
+        )
 
     try:
         return json.loads(clean_output)
@@ -61,7 +77,9 @@ def parse_model_json(output_text: str) -> dict:
         return {"raw_model_output": output_text}
 
 
-def summarise_with_nova(topic: str, articles: list) -> dict:
+def summarise_with_nova(topic: str, articles: list) -> tuple:
+    rag_context = retrieve_context(topic)
+
     article_text = "\n\n".join(
         [
             f"Title: {article.get('title', '')}\n"
@@ -72,19 +90,38 @@ def summarise_with_nova(topic: str, articles: list) -> dict:
         ]
     )
 
+    rag_text = "\n\n".join(
+        [
+            f"Document: {item['document']}\n"
+            f"Content: {item['text']}"
+            for item in rag_context
+        ]
+    )
+
     prompt = f"""
-You are a concise research assistant.
+You are an enterprise AI research assistant.
 
-Topic: {topic}
+Use BOTH:
+1. Internal enterprise knowledge base context
+2. Recent news articles
 
-News articles:
+Topic:
+{topic}
+
+Internal enterprise knowledge base context:
+{rag_text}
+
+Recent news articles:
 {article_text}
 
-Return valid JSON only with these fields:
+Return valid JSON only.
+
+Required fields:
 summary: string
 key_themes: list of strings
 risks: list of strings
 opportunities: list of strings
+enterprise_recommendations: list of strings
 follow_up_questions: list of strings
 """
 
@@ -97,15 +134,17 @@ follow_up_questions: list of strings
             }
         ],
         inferenceConfig={
-            "maxTokens": 800,
+            "maxTokens": 1200,
             "temperature": 0.3,
             "topP": 0.9,
         },
     )
 
     output_text = response["output"]["message"]["content"][0]["text"]
+    parsed = parse_model_json(output_text)
 
-    return parse_model_json(output_text)
+    return parsed, rag_context
+
 
 def parse_event_body(event) -> dict:
     body = event.get("body")
@@ -127,7 +166,7 @@ def handler(event, context):
         max_results = int(body.get("max_results", 5))
 
         articles = fetch_news(topic, max_results)
-        ai_summary = summarise_with_nova(topic, articles)
+        ai_summary, rag_context = summarise_with_nova(topic, articles)
 
         return {
             "statusCode": 200,
@@ -144,6 +183,14 @@ def handler(event, context):
                             "url": article.get("url"),
                         }
                         for article in articles
+                    ],
+                    "rag_context": [
+                        {
+                            "document": item["document"],
+                            "score": round(item["score"], 4),
+                            "text": item["text"][:500],
+                        }
+                        for item in rag_context
                     ],
                 }
             ),
