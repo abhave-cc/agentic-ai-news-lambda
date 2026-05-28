@@ -138,3 +138,22 @@ def build_index():
             )
 
     return index
+
+
+def upload_index(index):
+    body = json.dumps(index)
+
+    s3.put_object(
+        Bucket=RAG_BUCKET,
+        Key=INDEX_KEY,
+        Body=body.encode("utf-8"),
+        ContentType="application/json",
+    )
+
+    print(f"Uploaded index with {len(index)} chunks")
+    print(f"s3://{RAG_BUCKET}/{INDEX_KEY}")
+
+
+if __name__ == "__main__":
+    rag_index = build_index()
+    upload_index(rag_index)
