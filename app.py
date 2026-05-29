@@ -38,10 +38,12 @@ def get_gnews_api_key() -> str:
 
 def fetch_news(topic: str, max_results: int = 5) -> list:
     api_key = get_gnews_api_key()
+    // strip any '?' chars as it causes UI issues
+    safe_topic = topic.replace("?", "").replace(":", "").strip()
 
     url = "https://gnews.io/api/v4/search"
     params = {
-        "q": topic,
+        "q": safe_topic,
         "lang": "en",
         "max": max_results,
         "apikey": api_key,
