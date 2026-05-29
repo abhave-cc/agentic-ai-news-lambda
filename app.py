@@ -36,17 +36,40 @@ def get_gnews_api_key() -> str:
         return secret_string
 
 
+def build_news_query(topic: str) -> str:
+    stop_words = {
+        "what", "does", "the", "a", "an", "about", "and", "or", "for",
+        "to", "of", "in", "on", "with", "how", "should", "can", "could",
+        "would", "is", "are", "be", "by", "from", "that", "this", "it",
+        "say", "recommend", "compare", "current"
+    }
+
+    cleaned = (
+        topic.lower()
+        .replace("?", " ")
+        .replace(":", " ")
+        .replace(",", " ")
+        .replace(".", " ")
+        .replace("-", " ")
+        .replace("/", " ")
+    )
+
+    words = [
+        word.strip()
+        for word in cleaned.split()
+        if word.strip() and word.strip() not in stop_words
+    ]
+
+    if not words:
+        return topic.strip()
+
+    # Keep query concise for GNews
+    return " ".join(words[:8])
+
 def fetch_news(topic: str, max_results: int = 5) -> list:
     api_key = get_gnews_api_key()
     
-    # strip any '?' chars as it causes UI issues
-    # safe_topic = topic.replace("?", "").replace(":", "").strip()
-    safe_topic = (
-        topic.replace("?", "")
-        .replace(":", "")
-        .replace("GW-1", "AI landing zone")
-        .strip()
-    )
+   safe_topic = build_news_query(topic)
 
     url = "https://gnews.io/api/v4/search"
     params = {
