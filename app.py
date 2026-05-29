@@ -168,7 +168,12 @@ def handler(event, context):
         topic = body.get("topic", "agentic AI")
         max_results = int(body.get("max_results", 5))
 
-        articles = fetch_news(topic, max_results)
+        # articles = fetch_news(topic, max_results)
+        try:
+            articles = fetch_news(topic, max_results)
+        except Exception:
+            articles = []
+        
         ai_summary, rag_context = summarise_with_nova(topic, articles)
 
         return {
