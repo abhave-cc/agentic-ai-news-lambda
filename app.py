@@ -50,8 +50,9 @@ def build_news_query(topic: str) -> str:
         .replace(":", " ")
         .replace(",", " ")
         .replace(".", " ")
-        .replace("-", " ")
         .replace("/", " ")
+        .replace("(", " ")
+        .replace(")", " ")
     )
 
     words = [
@@ -63,13 +64,12 @@ def build_news_query(topic: str) -> str:
     if not words:
         return topic.strip()
 
-    # Keep query concise for GNews
     return " ".join(words[:8])
+
 
 def fetch_news(topic: str, max_results: int = 5) -> list:
     api_key = get_gnews_api_key()
-    
-   safe_topic = build_news_query(topic)
+    safe_topic = build_news_query(topic)
 
     url = "https://gnews.io/api/v4/search"
     params = {
@@ -110,7 +110,11 @@ def parse_model_json(output_text: str) -> dict:
 
 
 def summarise_with_nova(topic: str, articles: list) -> tuple:
-    rag_context = retrieve_context(topic)
+    try:
+        rag_context = retrieve_context(topic)
+    except Exception as rag_error:
+        print(f"RAG retrieval failed, continuing without RAG: {rag_error}")
+        rag_context = []
 
     article_text = "\n\n".join(
         [
@@ -136,6 +140,8 @@ You are an enterprise AI research assistant.
 Use BOTH:
 1. Internal enterprise knowledge base context
 2. Recent news articles
+
+If recent news articles are empty, continue using the internal knowledge base context.
 
 Topic:
 {topic}
@@ -197,13 +203,12 @@ def handler(event, context):
         topic = body.get("topic", "agentic AI")
         max_results = int(body.get("max_results", 5))
 
-        # articles = fetch_news(topic, max_results)
         try:
             articles = fetch_news(topic, max_results)
         except Exception as news_error:
             print(f"GNews lookup failed, continuing with RAG-only answer: {news_error}")
             articles = []
-        
+
         ai_summary, rag_context = summarise_with_nova(topic, articles)
 
         return {
@@ -235,6 +240,7 @@ def handler(event, context):
         }
 
     except Exception as error:
+        print(f"Unhandled application error: {error}")
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
