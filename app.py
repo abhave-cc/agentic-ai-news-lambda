@@ -40,7 +40,13 @@ def fetch_news(topic: str, max_results: int = 5) -> list:
     api_key = get_gnews_api_key()
     
     # strip any '?' chars as it causes UI issues
-    safe_topic = topic.replace("?", "").replace(":", "").strip()
+    # safe_topic = topic.replace("?", "").replace(":", "").strip()
+    safe_topic = (
+        topic.replace("?", "")
+        .replace(":", "")
+        .replace("GW-1", "AI landing zone")
+        .strip()
+    )
 
     url = "https://gnews.io/api/v4/search"
     params = {
@@ -171,7 +177,8 @@ def handler(event, context):
         # articles = fetch_news(topic, max_results)
         try:
             articles = fetch_news(topic, max_results)
-        except Exception:
+        except Exception as news_error:
+            print(f"GNews lookup failed, continuing with RAG-only answer: {news_error}")
             articles = []
         
         ai_summary, rag_context = summarise_with_nova(topic, articles)
