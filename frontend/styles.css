@@ -20,6 +20,32 @@ body {
   margin-bottom: 32px;
 }
 
+.source-panel {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.source-pill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.source-pill.warning {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.source-pill.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .eyebrow {
   color: #4f46e5;
   font-weight: 700;
