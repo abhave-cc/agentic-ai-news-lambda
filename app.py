@@ -36,106 +36,16 @@ def get_gnews_api_key() -> str:
         return secret_string
 
 
-def build_news_query(topic: str) -> str:
-    stop_words = {
-        "what", "does", "the", "a", "an", "about", "and", "or", "for",
-        "to", "of", "in", "on", "with", "how", "should", "can", "could",
-        "would", "is", "are", "be", "by", "from", "that", "this", "it",
-        "say", "recommend", "compare", "current", "landing", "zone", "gw-1"
-    }
+def sanitize_gnews_query(query: str) -> str:
+    cleaned = query.lower()
 
-    cleaned = (
-        topic.lower()
-        .replace("?", " ")
-        .replace(":", " ")
-        .replace(",", " ")
-        .replace(".", " ")
-        .replace("/", " ")
-        .replace("-", " ")
-    )
+    for char in [
+        "?", ":", ",", ".", "/", "\\", "(", ")", "[", "]", "{", "}",
+        '"', "'", "’", "“", "”", "-", "_", ";", "|"
+    ]:
+        cleaned = cleaned.replace(char, " ")
 
-    words = [
-        word.strip()
-        for word in cleaned.split()
-        if word.strip() and word.strip() not in stop_words
-    ]
-
-    if "jwt" in words or "authorization" in words:
-        return "AI security authorization"
-
-    if "rag" in words or "vector" in words:
-        return "enterprise RAG AI"
-
-    if "guardrails" in words:
-        return "AI guardrails enterprise"
-
-    if not words:
-        return "enterprise AI"
-
-    return " ".join(words[:5])
-
-# Function to use LLM to return a 'news search friendly' query from the given search prompt
-def build_news_query_with_nova(topic: str) -> str:
-    prompt = f"""
-Convert the following user question into a concise public news search query.
-
-Rules:
-- Return only the search query.
-- Maximum 4 words.
-- Remove internal project terms such as landing zone, GW-1, internal docs.
-- Keep public concepts such as AI security, zero trust, API security, agentic AI, governance.
-- Do not use quotes.
-- Do not explain.
-
-User question:
-{topic}
-"""
-
-    response = bedrock.converse(
-        modelId=MODEL_ID,
-        messages=[
-            {
-                "role": "user",
-                "content": [{"text": prompt}],
-            }
-        ],
-        inferenceConfig={
-            "maxTokens": 50,
-            "temperature": 0.1,
-            "topP": 0.8,
-        },
-    )
-
-    query = response["output"]["message"]["content"][0]["text"].strip()
-    query = query.replace('"', "").replace("'", "").strip()
-
-    if not query:
-        return "enterprise AI security"
-
-    return query
-
-def fetch_news(topic: str, max_results: int = 5) -> list:
-    api_key = get_gnews_api_key()
-    # safe_topic = build_news_query(topic)
-    try:
-        safe_topic = build_news_query_with_nova(topic)
-        print(f"GNews rewritten query: {safe_topic}")
-    except Exception as query_error:
-        print(f"Nova query rewrite failed, falling back to keyword cleanup: {query_error}")
-        safe_topic = build_news_query(topic)
-
-    url = "https://gnews.io/api/v4/search"
-    params = {
-        "q": safe_topic,
-        "lang": "en",
-        "max": max_results,
-        "apikey": api_key,
-    }
-
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-
-    return response.json().get("articles", [])
+    return " ".join(cleaned.split())
 
 
 def parse_model_json(output_text: str) -> dict:
@@ -162,6 +72,109 @@ def parse_model_json(output_text: str) -> dict:
         return {"raw_model_output": output_text}
 
 
+def build_news_query(topic: str) -> str:
+    stop_words = {
+        "what", "does", "the", "a", "an", "about", "and", "or", "for",
+        "to", "of", "in", "on", "with", "how", "should", "can", "could",
+        "would", "is", "are", "be", "by", "from", "that", "this", "it",
+        "say", "recommend", "compare", "current", "landing", "zone", "gw",
+        "gw1"
+    }
+
+    cleaned = sanitize_gnews_query(topic)
+
+    words = [
+        word.strip()
+        for word in cleaned.split()
+        if word.strip() and word.strip() not in stop_words
+    ]
+
+    if "jwt" in words or "authorization" in words or "authorisation" in words:
+        return "AI security authorization"
+
+    if "zero" in words and "trust" in words:
+        return "zero trust AI security"
+
+    if "rag" in words or "vector" in words:
+        return "enterprise RAG AI"
+
+    if "guardrails" in words:
+        return "AI guardrails enterprise"
+
+    if not words:
+        return "enterprise AI"
+
+    return " ".join(words[:5])
+
+
+def build_news_query_with_nova(topic: str) -> str:
+    prompt = f"""
+Rewrite the following user question into a short news search query.
+
+Rules:
+- Return valid JSON only.
+- Use this shape: {{"query": "..."}}
+- Keep it under 6 words.
+- Remove internal project terms such as landing zone, GW-1, user story, recipe.
+- Prefer public-news-friendly phrases.
+- Do not include punctuation.
+- Do not include hyphenated words.
+
+User question:
+{topic}
+"""
+
+    try:
+        response = bedrock.converse(
+            modelId=MODEL_ID,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [{"text": prompt}],
+                }
+            ],
+            inferenceConfig={
+                "maxTokens": 120,
+                "temperature": 0.1,
+                "topP": 0.9,
+            },
+        )
+
+        output_text = response["output"]["message"]["content"][0]["text"]
+        parsed = parse_model_json(output_text)
+        rewritten_query = parsed.get("query", topic)
+
+        sanitized = sanitize_gnews_query(rewritten_query)
+
+        if sanitized:
+            return sanitized
+
+    except Exception as error:
+        print(f"Nova news-query rewrite failed, falling back to local rewrite: {error}")
+
+    return build_news_query(topic)
+
+
+def fetch_news(topic: str, max_results: int = 5) -> list:
+    api_key = get_gnews_api_key()
+    safe_topic = build_news_query_with_nova(topic)
+
+    print(f"GNews rewritten query: {safe_topic}")
+
+    url = "https://gnews.io/api/v4/search"
+    params = {
+        "q": safe_topic,
+        "lang": "en",
+        "max": max_results,
+        "apikey": api_key,
+    }
+
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+
+    return response.json().get("articles", [])
+
+
 def summarise_with_nova(topic: str, articles: list) -> tuple:
     try:
         rag_context = retrieve_context(topic)
@@ -169,19 +182,19 @@ def summarise_with_nova(topic: str, articles: list) -> tuple:
         print(f"RAG retrieval failed, continuing without RAG: {rag_error}")
         rag_context = []
 
-    article_text = "\n\n".join(
+    article_text = "\\n\\n".join(
         [
-            f"Title: {article.get('title', '')}\n"
-            f"Description: {article.get('description', '')}\n"
-            f"Source: {article.get('source', {}).get('name', '')}\n"
+            f"Title: {article.get('title', '')}\\n"
+            f"Description: {article.get('description', '')}\\n"
+            f"Source: {article.get('source', {}).get('name', '')}\\n"
             f"URL: {article.get('url', '')}"
             for article in articles
         ]
     )
 
-    rag_text = "\n\n".join(
+    rag_text = "\\n\\n".join(
         [
-            f"Document: {item['document']}\n"
+            f"Document: {item['document']}\\n"
             f"Content: {item['text']}"
             for item in rag_context
         ]
