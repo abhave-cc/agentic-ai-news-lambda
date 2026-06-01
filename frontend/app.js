@@ -22,6 +22,57 @@ function setList(elementId, items) {
   });
 }
 
+function setSourceIndicators(body) {
+  const ragStatus = document.getElementById("ragStatus");
+  const newsStatus = document.getElementById("newsStatus");
+
+  const ragCount = body.rag_context ? body.rag_context.length : 0;
+  const newsCount = body.source_articles ? body.source_articles.length : 0;
+
+  ragStatus.className = "source-pill";
+  newsStatus.className = "source-pill";
+
+  if (ragCount > 0) {
+    ragStatus.textContent = `✓ RAG Knowledge Base used — ${ragCount} chunks retrieved`;
+    ragStatus.classList.add("success");
+  } else {
+    ragStatus.textContent = "⚠ RAG Knowledge Base not used";
+    ragStatus.classList.add("warning");
+  }
+
+  if (newsCount > 0) {
+    newsStatus.textContent = `✓ GNews used — ${newsCount} articles returned`;
+    newsStatus.classList.add("success");
+  } else {
+    newsStatus.textContent = "⚠ GNews attempted — no articles returned";
+    newsStatus.classList.add("warning");
+  }
+}
+
+function setRagContext(items) {
+  const el = document.getElementById("ragContext");
+  el.innerHTML = "";
+
+  if (!items || items.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "No knowledge base context returned";
+    el.appendChild(li);
+    return;
+  }
+
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${item.document}</strong>
+      <br />
+      <small>Similarity score: ${item.score}</small>
+      <br />
+      ${item.text}
+    `;
+    el.appendChild(li);
+  });
+}
+
 function setArticles(articles) {
   const el = document.getElementById("articles");
   el.innerHTML = "";
@@ -90,6 +141,8 @@ runButton.addEventListener("click", async () => {
     
     const summary = body.summary || {};
 
+    setSourceIndicators(body);
+
     document.getElementById("summary").textContent =
       summary.summary || summary.raw_model_output || "No summary returned";
 
@@ -98,6 +151,8 @@ runButton.addEventListener("click", async () => {
     setList("opportunities", summary.opportunities);
     setList("questions", summary.follow_up_questions);
     setArticles(body.source_articles);
+
+    setRagContext(body.rag_context);
 
     resultsEl.classList.remove("hidden");
     statusEl.textContent = `Completed using ${body.model || "model"}.`;
