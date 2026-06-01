@@ -41,7 +41,7 @@ def build_news_query(topic: str) -> str:
         "what", "does", "the", "a", "an", "about", "and", "or", "for",
         "to", "of", "in", "on", "with", "how", "should", "can", "could",
         "would", "is", "are", "be", "by", "from", "that", "this", "it",
-        "say", "recommend", "compare", "current"
+        "say", "recommend", "compare", "current", "landing", "zone", "gw-1"
     }
 
     cleaned = (
@@ -51,8 +51,7 @@ def build_news_query(topic: str) -> str:
         .replace(",", " ")
         .replace(".", " ")
         .replace("/", " ")
-        .replace("(", " ")
-        .replace(")", " ")
+        .replace("-", " ")
     )
 
     words = [
@@ -61,10 +60,19 @@ def build_news_query(topic: str) -> str:
         if word.strip() and word.strip() not in stop_words
     ]
 
-    if not words:
-        return topic.strip()
+    if "jwt" in words or "authorization" in words:
+        return "AI security authorization"
 
-    return " ".join(words[:8])
+    if "rag" in words or "vector" in words:
+        return "enterprise RAG AI"
+
+    if "guardrails" in words:
+        return "AI guardrails enterprise"
+
+    if not words:
+        return "enterprise AI"
+
+    return " ".join(words[:5])
 
 # Function to use LLM to return a 'news search friendly' query from the given search prompt
 def build_news_query_with_nova(topic: str) -> str:
@@ -73,7 +81,7 @@ Convert the following user question into a concise public news search query.
 
 Rules:
 - Return only the search query.
-- Maximum 8 words.
+- Maximum 4 words.
 - Remove internal project terms such as landing zone, GW-1, internal docs.
 - Keep public concepts such as AI security, zero trust, API security, agentic AI, governance.
 - Do not use quotes.
