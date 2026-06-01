@@ -66,10 +66,54 @@ def build_news_query(topic: str) -> str:
 
     return " ".join(words[:8])
 
+# Function to use LLM to return a 'news search friendly' query from the given search prompt
+def build_news_query_with_nova(topic: str) -> str:
+    prompt = f"""
+Convert the following user question into a concise public news search query.
+
+Rules:
+- Return only the search query.
+- Maximum 8 words.
+- Remove internal project terms such as landing zone, GW-1, internal docs.
+- Keep public concepts such as AI security, zero trust, API security, agentic AI, governance.
+- Do not use quotes.
+- Do not explain.
+
+User question:
+{topic}
+"""
+
+    response = bedrock.converse(
+        modelId=MODEL_ID,
+        messages=[
+            {
+                "role": "user",
+                "content": [{"text": prompt}],
+            }
+        ],
+        inferenceConfig={
+            "maxTokens": 50,
+            "temperature": 0.1,
+            "topP": 0.8,
+        },
+    )
+
+    query = response["output"]["message"]["content"][0]["text"].strip()
+    query = query.replace('"', "").replace("'", "").strip()
+
+    if not query:
+        return "enterprise AI security"
+
+    return query
 
 def fetch_news(topic: str, max_results: int = 5) -> list:
     api_key = get_gnews_api_key()
-    safe_topic = build_news_query(topic)
+    # safe_topic = build_news_query(topic)
+    try:
+        safe_topic = build_news_query_with_nova(topic)
+    except Exception as query_error:
+        print(f"Nova query rewrite failed, falling back to keyword cleanup: {query_error}")
+        safe_topic = build_news_query(topic)
 
     url = "https://gnews.io/api/v4/search"
     params = {
