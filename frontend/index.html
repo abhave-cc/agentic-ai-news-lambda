@@ -33,6 +33,12 @@
     </section>
 
     <section id="results" class="results hidden">
+      <!-- List the sources - where it got the content from-->
+      <div class="source-panel">
+        <div id="ragStatus" class="source-pill">RAG: checking...</div>
+        <div id="newsStatus" class="source-pill">GNews: checking...</div>
+      </div> 
+      
       <h2>Research Summary</h2>
       <p id="summary"></p>
 
@@ -57,7 +63,13 @@
 
       <h3>Source Articles</h3>
       <ul id="articles" class="articles"></ul>
+      
+      <h3>Knowledge Base Context Used</h3>
+      <ul id="ragContext" class="articles"></ul>
+      
     </section>
+
+   
   </main>
 
   <script src="app.js"></script>
