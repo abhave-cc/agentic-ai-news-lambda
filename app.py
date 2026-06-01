@@ -111,6 +111,7 @@ def fetch_news(topic: str, max_results: int = 5) -> list:
     # safe_topic = build_news_query(topic)
     try:
         safe_topic = build_news_query_with_nova(topic)
+        print(f"GNews rewritten query: {safe_topic}")
     except Exception as query_error:
         print(f"Nova query rewrite failed, falling back to keyword cleanup: {query_error}")
         safe_topic = build_news_query(topic)
