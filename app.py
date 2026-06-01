@@ -114,7 +114,7 @@ Rewrite the following user question into a short news search query.
 Rules:
 - Return valid JSON only.
 - Use this shape: {{"query": "..."}}
-- Keep it under 6 words.
+- Keep it under 3 words. Summarise the essence into 2-3 words.
 - Remove internal project terms such as landing zone, GW-1, user story, recipe.
 - Prefer public-news-friendly phrases.
 - Do not include punctuation.
