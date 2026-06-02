@@ -21,6 +21,7 @@ def get_gnews_api_key() -> str:
 
     try:
         secret_json = json.loads(secret_string)
+
         api_key = (
             secret_json.get("GNEWS_API_KEY")
             or secret_json.get("api_key")
@@ -40,8 +41,27 @@ def sanitize_gnews_query(query: str) -> str:
     cleaned = query.lower()
 
     for char in [
-        "?", ":", ",", ".", "/", "\\", "(", ")", "[", "]", "{", "}",
-        '"', "'", "’", "“", "”", "-", "_", ";", "|"
+        "?",
+        ":",
+        ",",
+        ".",
+        "/",
+        "\\",
+        "(",
+        ")",
+        "[",
+        "]",
+        "{",
+        "}",
+        '"',
+        "'",
+        "’",
+        "“",
+        "”",
+        "-",
+        "_",
+        ";",
+        "|",
     ]:
         cleaned = cleaned.replace(char, " ")
 
@@ -58,6 +78,7 @@ def parse_model_json(output_text: str) -> dict:
             .split("```", 1)[0]
             .strip()
         )
+
     elif "```" in clean_output:
         clean_output = (
             clean_output
@@ -68,17 +89,48 @@ def parse_model_json(output_text: str) -> dict:
 
     try:
         return json.loads(clean_output)
+
     except json.JSONDecodeError:
         return {"raw_model_output": output_text}
 
 
 def build_news_query(topic: str) -> str:
     stop_words = {
-        "what", "does", "the", "a", "an", "about", "and", "or", "for",
-        "to", "of", "in", "on", "with", "how", "should", "can", "could",
-        "would", "is", "are", "be", "by", "from", "that", "this", "it",
-        "say", "recommend", "compare", "current", "landing", "zone", "gw",
-        "gw1"
+        "what",
+        "does",
+        "the",
+        "a",
+        "an",
+        "about",
+        "and",
+        "or",
+        "for",
+        "to",
+        "of",
+        "in",
+        "on",
+        "with",
+        "how",
+        "should",
+        "can",
+        "could",
+        "would",
+        "is",
+        "are",
+        "be",
+        "by",
+        "from",
+        "that",
+        "this",
+        "it",
+        "say",
+        "recommend",
+        "compare",
+        "current",
+        "landing",
+        "zone",
+        "gw",
+        "gw1",
     }
 
     cleaned = sanitize_gnews_query(topic)
@@ -93,7 +145,7 @@ def build_news_query(topic: str) -> str:
         return "AI security authorization"
 
     if "zero" in words and "trust" in words:
-        return "zero trust AI security"
+        return "zero trust AI"
 
     if "rag" in words or "vector" in words:
         return "enterprise RAG AI"
@@ -104,21 +156,23 @@ def build_news_query(topic: str) -> str:
     if not words:
         return "enterprise AI"
 
-    return " ".join(words[:5])
+    return " ".join(words[:3])
 
 
 def build_news_query_with_nova(topic: str) -> str:
     prompt = f"""
-Rewrite the following user question into a short news search query.
+Rewrite the following user question into a SHORT public news search query.
 
 Rules:
 - Return valid JSON only.
-- Use this shape: {{"query": "..."}}
-- Keep it under 3 words. Summarise the essence into 2-3 words.
-- Remove internal project terms such as landing zone, GW-1, user story, recipe.
-- Prefer public-news-friendly phrases.
-- Do not include punctuation.
-- Do not include hyphenated words.
+- Use this exact shape:
+{{"query": "..."}}
+- MAXIMUM 3 WORDS.
+- Prefer broad public-news phrases.
+- Remove internal project terminology.
+- No punctuation.
+- No hyphens.
+- No quotes.
 
 User question:
 {topic}
@@ -134,34 +188,43 @@ User question:
                 }
             ],
             inferenceConfig={
-                "maxTokens": 120,
+                "maxTokens": 60,
                 "temperature": 0.1,
                 "topP": 0.9,
             },
         )
 
         output_text = response["output"]["message"]["content"][0]["text"]
+
         parsed = parse_model_json(output_text)
+
         rewritten_query = parsed.get("query", topic)
 
         sanitized = sanitize_gnews_query(rewritten_query)
 
         if sanitized:
-            return sanitized
+            return " ".join(sanitized.split()[:3])
 
     except Exception as error:
-        print(f"Nova news-query rewrite failed, falling back to local rewrite: {error}")
+        print(
+            f"Nova news-query rewrite failed, "
+            f"falling back to local rewrite: {error}"
+        )
 
-    return build_news_query(topic)
+    fallback = build_news_query(topic)
+
+    return " ".join(fallback.split()[:3])
 
 
 def fetch_news(topic: str, max_results: int = 5) -> list:
     api_key = get_gnews_api_key()
+
     safe_topic = build_news_query_with_nova(topic)
 
     print(f"GNews rewritten query: {safe_topic}")
 
     url = "https://gnews.io/api/v4/search"
+
     params = {
         "q": safe_topic,
         "lang": "en",
@@ -170,6 +233,7 @@ def fetch_news(topic: str, max_results: int = 5) -> list:
     }
 
     response = requests.get(url, params=params, timeout=10)
+
     response.raise_for_status()
 
     return response.json().get("articles", [])
@@ -178,23 +242,24 @@ def fetch_news(topic: str, max_results: int = 5) -> list:
 def summarise_with_nova(topic: str, articles: list) -> tuple:
     try:
         rag_context = retrieve_context(topic)
+
     except Exception as rag_error:
         print(f"RAG retrieval failed, continuing without RAG: {rag_error}")
         rag_context = []
 
-    article_text = "\\n\\n".join(
+    article_text = "\n\n".join(
         [
-            f"Title: {article.get('title', '')}\\n"
-            f"Description: {article.get('description', '')}\\n"
-            f"Source: {article.get('source', {}).get('name', '')}\\n"
+            f"Title: {article.get('title', '')}\n"
+            f"Description: {article.get('description', '')}\n"
+            f"Source: {article.get('source', {}).get('name', '')}\n"
             f"URL: {article.get('url', '')}"
             for article in articles
         ]
     )
 
-    rag_text = "\\n\\n".join(
+    rag_text = "\n\n".join(
         [
-            f"Document: {item['document']}\\n"
+            f"Document: {item['document']}\n"
             f"Content: {item['text']}"
             for item in rag_context
         ]
@@ -207,7 +272,8 @@ Use BOTH:
 1. Internal enterprise knowledge base context
 2. Recent news articles
 
-If recent news articles are empty, continue using the internal knowledge base context.
+If recent news articles are empty,
+continue using the internal knowledge base context.
 
 Topic:
 {topic}
@@ -245,6 +311,7 @@ follow_up_questions: list of strings
     )
 
     output_text = response["output"]["message"]["content"][0]["text"]
+
     parsed = parse_model_json(output_text)
 
     return parsed, rag_context
@@ -267,12 +334,18 @@ def handler(event, context):
         body = parse_event_body(event)
 
         topic = body.get("topic", "agentic AI")
+
         max_results = int(body.get("max_results", 5))
 
         try:
             articles = fetch_news(topic, max_results)
+
         except Exception as news_error:
-            print(f"GNews lookup failed, continuing with RAG-only answer: {news_error}")
+            print(
+                "GNews lookup failed, "
+                f"continuing with RAG-only answer: {news_error}"
+            )
+
             articles = []
 
         ai_summary, rag_context = summarise_with_nova(topic, articles)
@@ -307,6 +380,7 @@ def handler(event, context):
 
     except Exception as error:
         print(f"Unhandled application error: {error}")
+
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
