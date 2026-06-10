@@ -102,6 +102,42 @@ function setArticles(articles) {
   });
 }
 
+function setHackerNews(items) {
+  const el = document.getElementById("hackerNews");
+  el.innerHTML = "";
+
+  if (!items || items.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "No Hacker News signals returned";
+    el.appendChild(li);
+    return;
+  }
+
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<a href="${item.url}" target="_blank">${item.title}</a>`;
+    el.appendChild(li);
+  });
+}
+
+function setArxivPapers(items) {
+  const el = document.getElementById("arxivPapers");
+  el.innerHTML = "";
+
+  if (!items || items.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "No arXiv papers returned";
+    el.appendChild(li);
+    return;
+  }
+
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<a href="${item.url}" target="_blank">${item.title}</a>`;
+    el.appendChild(li);
+  });
+}
+
 runButton.addEventListener("click", async () => {
   const topic = document.getElementById("topic").value.trim();
   const maxResults = Number(document.getElementById("maxResults").value);
