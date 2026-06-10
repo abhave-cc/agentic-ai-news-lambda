@@ -191,6 +191,7 @@ runButton.addEventListener("click", async () => {
     setRagContext(body.rag_context);
 
     setHackerNews(body.hacker_news);
+    
     setArxivPapers(body.arxiv_papers);
 
     resultsEl.classList.remove("hidden");
