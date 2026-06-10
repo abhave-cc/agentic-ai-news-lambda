@@ -2,6 +2,7 @@ FROM public.ecr.aws/lambda/python:3.12
 
 COPY app.py ${LAMBDA_TASK_ROOT}
 COPY rag.py ${LAMBDA_TASK_ROOT}
+COPY external_sources.py ${LAMBDA_TASK_ROOT}
 COPY requirements.txt ${LAMBDA_TASK_ROOT}
 
 RUN pip install -r requirements.txt
