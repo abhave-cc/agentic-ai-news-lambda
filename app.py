@@ -5,6 +5,7 @@ import boto3
 import requests
 
 from rag import retrieve_context
+from external_sources import fetch_hacker_news, fetch_arxiv
 
 
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "eu-west-2")
@@ -239,7 +240,13 @@ def fetch_news(topic: str, max_results: int = 5) -> list:
     return response.json().get("articles", [])
 
 
-def summarise_with_nova(topic: str, articles: list) -> tuple:
+def summarise_with_nova(
+    topic: str,
+    articles: list,
+    hacker_news_items: list,
+    arxiv_items: list,
+) -> tuple:
+# def summarise_with_nova(topic: str, articles: list) -> tuple:
     try:
         rag_context = retrieve_context(topic)
 
@@ -265,6 +272,24 @@ def summarise_with_nova(topic: str, articles: list) -> tuple:
         ]
     )
 
+    hn_text = "\n\n".join(
+        [
+            f"Title: {item.get('title', '')}\n"
+            f"Score: {item.get('score', '')}\n"
+            f"URL: {item.get('url', '')}"
+            for item in hacker_news_items
+        ]
+    )
+
+    arxiv_text = "\n\n".join(
+        [
+            f"Title: {item.get('title', '')}\n"
+            f"Summary: {item.get('summary', '')}\n"
+            f"URL: {item.get('url', '')}"
+            for item in arxiv_items
+        ]
+    )
+
     prompt = f"""
 You are an enterprise AI research assistant.
 
@@ -283,6 +308,12 @@ Internal enterprise knowledge base context:
 
 Recent news articles:
 {article_text}
+
+Hacker News engineering discussion:
+{hn_text}
+
+arXiv research papers:
+{arxiv_text}
 
 Return valid JSON only.
 
@@ -348,7 +379,26 @@ def handler(event, context):
 
             articles = []
 
-        ai_summary, rag_context = summarise_with_nova(topic, articles)
+        try:
+            hacker_news_items = fetch_hacker_news(topic, limit=5)
+        except Exception as hn_error:
+            print(f"Hacker News lookup failed, continuing: {hn_error}")
+            hacker_news_items = []
+
+        try:
+            arxiv_items = fetch_arxiv(topic, limit=5)
+        except Exception as arxiv_error:
+            print(f"arXiv lookup failed, continuing: {arxiv_error}")
+            arxiv_items = []
+
+       # ai_summary, rag_context = summarise_with_nova(topic, articles)
+
+        ai_summary, rag_context = summarise_with_nova(
+            topic,
+            articles,
+            hacker_news_items,
+            arxiv_items,
+        )
 
         return {
             "statusCode": 200,
@@ -374,6 +424,9 @@ def handler(event, context):
                         }
                         for item in rag_context
                     ],
+
+                    "hacker_news": hacker_news_items,
+                    "arxiv_papers": arxiv_items,
                 }
             ),
         }
