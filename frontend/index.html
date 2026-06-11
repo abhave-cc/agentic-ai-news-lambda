@@ -9,22 +9,27 @@
 <body>
   <main class="page">
     <section class="hero">
-      <p class="eyebrow">AWS Bedrock + Lambda + GNews + Hacker News + Arxiv</p>
+      <div class="eyebrow">AWS BEDROCK + LAMBDA + GNEWS + RAG + HN + ARXIV</div>
       <h1>Agentic News Research Assistant</h1>
-      <p class="subtitle">
-        Enter a topic and let the Lambda-based agent fetch live news, hacker news, content from Arxiv and reason over it with Nova Lite, and return a structured research summary.
+      <p>
+        Enter a topic and let the Lambda-based agent retrieve enterprise knowledge,
+        live news, engineering signals and research papers before producing a structured summary.
       </p>
     </section>
 
-    <section class="card">
+    <section class="card input-card">
       <label for="topic">Research topic</label>
-      <input id="topic" type="text" value="How should enterprises implement AI guardrails and how do current industry discussions and research trends compare with our AI landing zone recommendations?" />
+      <input
+        id="topic"
+        type="text"
+        value="How should enterprises adopt agentic AI and what are the latest industry and research developments?"
+      />
 
       <label for="maxResults">Number of source articles</label>
       <select id="maxResults">
         <option value="3" selected>3</option>
         <option value="5">5</option>
-        <option value="7">7</option>
+        <option value="10">10</option>
       </select>
 
       <button id="runButton">Run research agent</button>
@@ -32,50 +37,75 @@
       <p id="status" class="status"></p>
     </section>
 
-    <section id="results" class="results hidden">
-      <!-- List the sources - where it got the content from-->
-      <div class="source-panel">
-        <div id="ragStatus" class="source-pill">RAG: checking...</div>
-        <div id="newsStatus" class="source-pill">GNews: checking...</div>
-      </div> 
-      
-      <h2>Research Summary</h2>
-      <p id="summary"></p>
+    <section id="results" class="card results-card hidden">
+      <div id="sourceBadges" class="source-badges">
+        <span id="ragBadge" class="source-badge neutral">
+          RAG Knowledge Base not checked
+        </span>
 
-      <div class="grid">
-        <div>
-          <h3>Key Themes</h3>
-          <ul id="themes"></ul>
-        </div>
-        <div>
-          <h3>Risks</h3>
-          <ul id="risks"></ul>
-        </div>
-        <div>
-          <h3>Opportunities</h3>
-          <ul id="opportunities"></ul>
-        </div>
-        <div>
-          <h3>Follow-up Questions</h3>
-          <ul id="questions"></ul>
-        </div>
+        <span id="gnewsBadge" class="source-badge neutral">
+          GNews not checked
+        </span>
+
+        <span id="hnBadge" class="source-badge neutral">
+          Hacker News not checked
+        </span>
+
+        <span id="arxivBadge" class="source-badge neutral">
+          arXiv not checked
+        </span>
       </div>
 
-      <h3>Source Articles</h3>
-      <ul id="articles" class="articles"></ul>
-      
-      <h3>Knowledge Base Context Used</h3>
-      <ul id="ragContext" class="articles"></ul>
+      <h2>Research Summary</h2>
+      <p id="summaryText">No summary returned</p>
 
-      <h3>Hacker News Signals</h3>
-      <ul id="hackerNews"></ul>
+      <div class="grid">
+        <section>
+          <h3>Key Themes</h3>
+          <ul id="keyThemes"></ul>
+        </section>
 
-      <h3>arXiv Research Signals</h3>
-      <ul id="arxivPapers"></ul>
-      
+        <section>
+          <h3>Risks</h3>
+          <ul id="risks"></ul>
+        </section>
+
+        <section>
+          <h3>Opportunities</h3>
+          <ul id="opportunities"></ul>
+        </section>
+
+        <section>
+          <h3>Enterprise Recommendations</h3>
+          <ul id="enterpriseRecommendations"></ul>
+        </section>
+
+        <section>
+          <h3>Follow-up Questions</h3>
+          <ul id="followUpQuestions"></ul>
+        </section>
+      </div>
+
+      <section>
+        <h3>Source Articles</h3>
+        <ul id="sourceArticles"></ul>
+      </section>
+
+      <section>
+        <h3>Hacker News Signals</h3>
+        <ul id="hackerNews"></ul>
+      </section>
+
+      <section>
+        <h3>arXiv Research Signals</h3>
+        <ul id="arxivPapers"></ul>
+      </section>
+
+      <section>
+        <h3>Internal Knowledge Sources</h3>
+        <ul id="ragContext"></ul>
+      </section>
     </section>
-
-   
   </main>
 
   <script src="app.js"></script>
