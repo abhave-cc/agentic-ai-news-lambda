@@ -361,6 +361,7 @@ def parse_event_body(event) -> dict:
 
 
 def handler(event, context):
+    print("V5A BUILD WITH HACKERNEWS + ARXIV")
     try:
         body = parse_event_body(event)
 
@@ -378,13 +379,17 @@ def handler(event, context):
             )
 
             articles = []
-
+        
+        print("ABOUT TO CALL HACKER NEWS")
+        
         try:
             hacker_news_items = fetch_hacker_news(topic, limit=5)
         except Exception as hn_error:
             print(f"Hacker News lookup failed, continuing: {hn_error}")
             hacker_news_items = []
 
+        print("HACKER NEWS CALL FINISHED")
+        
         try:
             arxiv_items = fetch_arxiv(topic, limit=5)
         except Exception as arxiv_error:
