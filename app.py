@@ -400,6 +400,9 @@ def handler(event, context):
             arxiv_items,
         )
 
+        print(f"Hacker News items returned: {len(hacker_news_items)}")
+        print(f"arXiv items returned: {len(arxiv_items)}")
+
         return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
