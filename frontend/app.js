@@ -47,16 +47,20 @@ function addListItems(element, items) {
   });
 }
 
-function setBadge(element, text, success) {
-  element.textContent = text;
-
+function setBadge(element, label, count, successText, emptyText) {
   element.classList.remove(
     "success",
     "warning",
     "neutral"
   );
 
-  element.classList.add(success ? "success" : "warning");
+  if (count > 0) {
+    element.textContent = `✓ ${label} used — ${count} ${successText}`;
+    element.classList.add("success");
+  } else {
+    element.textContent = `⚠ ${label} attempted — no ${emptyText} returned`;
+    element.classList.add("warning");
+  }
 }
 
 function renderSourceArticles(articles) {
@@ -256,7 +260,7 @@ runButton.addEventListener("click", async () => {
     const arxivCount =
       payload.arxiv_papers?.length || 0;
 
-    setBadge(
+    /* setBadge(
       ragBadge,
       `✓ RAG Knowledge Base used — ${ragCount} chunks retrieved`,
       ragCount > 0
@@ -278,6 +282,38 @@ runButton.addEventListener("click", async () => {
       arxivBadge,
       `✓ arXiv used — ${arxivCount} papers returned`,
       arxivCount > 0
+    );*/
+
+    setBadge(
+      ragBadge,
+      "RAG Knowledge Base",
+      ragCount,
+      "chunks retrieved",
+      "chunks"
+    );
+    
+    setBadge(
+      gnewsBadge,
+      "GNews",
+      gnewsCount,
+      "articles returned",
+      "articles"
+    );
+    
+    setBadge(
+      hnBadge,
+      "Hacker News",
+      hnCount,
+      "items returned",
+      "items"
+    );
+    
+    setBadge(
+      arxivBadge,
+      "arXiv",
+      arxivCount,
+      "papers returned",
+      "papers"
     );
 
     resultsEl.classList.remove(
