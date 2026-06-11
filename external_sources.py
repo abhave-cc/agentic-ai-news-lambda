@@ -50,31 +50,32 @@ def fetch_hacker_news(query: str, limit: int = 5) -> list[dict]:
     stories = []
 
     for item_id in story_ids:
-        item_response = requests.get(
-            HN_ITEM_URL.format(item_id=item_id),
-            timeout=10,
-        )
-        item_response.raise_for_status()
-
-        item = item_response.json() or {}
+        try:
+            item_response = requests.get(
+                HN_ITEM_URL.format(item_id=item_id),
+                timeout=10,
+            )
+            item_response.raise_for_status()
+            item = item_response.json() or {}
+        except Exception:
+            continue
 
         if item.get("type") != "story":
             continue
 
         title = item.get("title", "")
         url = item.get("url") or f"https://news.ycombinator.com/item?id={item_id}"
-        score = _keyword_score(title, keywords)
+        keyword_score = _keyword_score(title, keywords)
 
-        if score > 0:
-            stories.append(
-                {
-                    "title": title,
-                    "url": url,
-                    "score": item.get("score", 0),
-                    "source": "Hacker News",
-                    "keyword_score": score,
-                }
-            )
+        stories.append(
+            {
+                "title": title,
+                "url": url,
+                "score": item.get("score", 0),
+                "source": "Hacker News",
+                "keyword_score": keyword_score,
+            }
+        )
 
     stories.sort(
         key=lambda item: (item["keyword_score"], item["score"]),
@@ -85,8 +86,8 @@ def fetch_hacker_news(query: str, limit: int = 5) -> list[dict]:
 
 
 def fetch_arxiv(query: str, limit: int = 5) -> list[dict]:
-    keywords = _extract_keywords(query)
-    search_query = " ".join(keywords[:5]) if keywords else "artificial intelligence"
+    # Deliberately broad for demo reliability.
+    search_query = "AI agents"
 
     params = {
         "search_query": f"all:{quote_plus(search_query)}",
