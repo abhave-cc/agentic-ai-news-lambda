@@ -36,6 +36,37 @@ body {
   font-size: 14px;
 }
 
+.source-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.source-badge.success {
+  background: #e8fff3;
+  color: #007a3d;
+}
+
+.source-badge.warning {
+  background: #fff4e5;
+  color: #a14d00;
+}
+
+.source-badge.neutral {
+  background: #eef2f7;
+  color: #334155;
+}
+
 .source-pill.warning {
   background: #fff7ed;
   color: #9a3412;
