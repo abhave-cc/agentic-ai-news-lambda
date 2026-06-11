@@ -4,200 +4,291 @@ const runButton = document.getElementById("runButton");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 
-function setList(elementId, items) {
-  const el = document.getElementById(elementId);
-  el.innerHTML = "";
+const summaryText = document.getElementById("summaryText");
+
+const keyThemesEl = document.getElementById("keyThemes");
+const risksEl = document.getElementById("risks");
+const opportunitiesEl = document.getElementById("opportunities");
+const enterpriseRecommendationsEl = document.getElementById(
+  "enterpriseRecommendations"
+);
+const followUpQuestionsEl = document.getElementById(
+  "followUpQuestions"
+);
+
+const sourceArticlesEl = document.getElementById("sourceArticles");
+const hackerNewsEl = document.getElementById("hackerNews");
+const arxivPapersEl = document.getElementById("arxivPapers");
+const ragContextEl = document.getElementById("ragContext");
+
+const ragBadge = document.getElementById("ragBadge");
+const gnewsBadge = document.getElementById("gnewsBadge");
+const hnBadge = document.getElementById("hnBadge");
+const arxivBadge = document.getElementById("arxivBadge");
+
+function clearList(element) {
+  element.innerHTML = "";
+}
+
+function addListItems(element, items) {
+  clearList(element);
 
   if (!items || items.length === 0) {
     const li = document.createElement("li");
-    li.textContent = "None returned";
-    el.appendChild(li);
+    li.textContent = "None";
+    element.appendChild(li);
     return;
   }
 
   items.forEach((item) => {
     const li = document.createElement("li");
     li.textContent = item;
-    el.appendChild(li);
+    element.appendChild(li);
   });
 }
 
-function setSourceIndicators(body) {
-  const ragStatus = document.getElementById("ragStatus");
-  const newsStatus = document.getElementById("newsStatus");
+function setBadge(element, text, success) {
+  element.textContent = text;
 
-  const ragCount = body.rag_context ? body.rag_context.length : 0;
-  const newsCount = body.source_articles ? body.source_articles.length : 0;
+  element.classList.remove(
+    "success",
+    "warning",
+    "neutral"
+  );
 
-  ragStatus.className = "source-pill";
-  newsStatus.className = "source-pill";
-
-  if (ragCount > 0) {
-    ragStatus.textContent = `✓ RAG Knowledge Base used — ${ragCount} chunks retrieved`;
-    ragStatus.classList.add("success");
-  } else {
-    ragStatus.textContent = "⚠ RAG Knowledge Base not used";
-    ragStatus.classList.add("warning");
-  }
-
-  if (newsCount > 0) {
-    newsStatus.textContent = `✓ GNews used — ${newsCount} articles returned`;
-    newsStatus.classList.add("success");
-  } else {
-    newsStatus.textContent = "⚠ GNews attempted — no articles returned";
-    newsStatus.classList.add("warning");
-  }
+  element.classList.add(success ? "success" : "warning");
 }
 
-function setRagContext(items) {
-  const el = document.getElementById("ragContext");
-  el.innerHTML = "";
-
-  if (!items || items.length === 0) {
-    const li = document.createElement("li");
-    li.textContent = "No knowledge base context returned";
-    el.appendChild(li);
-    return;
-  }
-
-  items.forEach((item) => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <strong>${item.document}</strong>
-      <br />
-      <small>Similarity score: ${item.score}</small>
-      <br />
-      ${item.text}
-    `;
-    el.appendChild(li);
-  });
-}
-
-function setArticles(articles) {
-  const el = document.getElementById("articles");
-  el.innerHTML = "";
+function renderSourceArticles(articles) {
+  clearList(sourceArticlesEl);
 
   if (!articles || articles.length === 0) {
-    const li = document.createElement("li");
-    li.textContent = "No articles returned";
-    el.appendChild(li);
+    sourceArticlesEl.innerHTML =
+      "<li>No articles returned</li>";
     return;
   }
 
   articles.forEach((article) => {
     const li = document.createElement("li");
-    const link = document.createElement("a");
 
+    const link = document.createElement("a");
     link.href = article.url;
     link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = article.title || "Untitled article";
-
-    const source = document.createElement("span");
-    source.textContent = article.source ? ` — ${article.source}` : "";
+    link.textContent = article.title;
 
     li.appendChild(link);
-    li.appendChild(source);
-    el.appendChild(li);
+    sourceArticlesEl.appendChild(li);
   });
 }
 
-function setHackerNews(items) {
-  const el = document.getElementById("hackerNews");
-  el.innerHTML = "";
+function renderHackerNews(items) {
+  clearList(hackerNewsEl);
 
   if (!items || items.length === 0) {
-    const li = document.createElement("li");
-    li.textContent = "No Hacker News signals returned";
-    el.appendChild(li);
+    hackerNewsEl.innerHTML =
+      "<li>No Hacker News items returned</li>";
     return;
   }
 
   items.forEach((item) => {
     const li = document.createElement("li");
-    li.innerHTML = `<a href="${item.url}" target="_blank">${item.title}</a>`;
-    el.appendChild(li);
+
+    const link = document.createElement("a");
+    link.href = item.url;
+    link.target = "_blank";
+    link.textContent =
+      `${item.title} (score ${item.score || 0})`;
+
+    li.appendChild(link);
+    hackerNewsEl.appendChild(li);
   });
 }
 
-function setArxivPapers(items) {
-  const el = document.getElementById("arxivPapers");
-  el.innerHTML = "";
+function renderArxiv(items) {
+  clearList(arxivPapersEl);
 
   if (!items || items.length === 0) {
+    arxivPapersEl.innerHTML =
+      "<li>No arXiv papers returned</li>";
+    return;
+  }
+
+  items.forEach((paper) => {
     const li = document.createElement("li");
-    li.textContent = "No arXiv papers returned";
-    el.appendChild(li);
+
+    const link = document.createElement("a");
+    link.href = paper.url;
+    link.target = "_blank";
+    link.textContent = paper.title;
+
+    li.appendChild(link);
+    arxivPapersEl.appendChild(li);
+  });
+}
+
+function renderRagContext(items) {
+  clearList(ragContextEl);
+
+  if (!items || items.length === 0) {
+    ragContextEl.innerHTML =
+      "<li>No RAG context returned</li>";
     return;
   }
 
   items.forEach((item) => {
     const li = document.createElement("li");
-    li.innerHTML = `<a href="${item.url}" target="_blank">${item.title}</a>`;
-    el.appendChild(li);
+
+    li.textContent =
+      `${item.document} (score ${Number(
+        item.score || 0
+      ).toFixed(2)})`;
+
+    ragContextEl.appendChild(li);
   });
 }
 
 runButton.addEventListener("click", async () => {
-  const topic = document.getElementById("topic").value.trim();
-  const maxResults = Number(document.getElementById("maxResults").value);
+  const topic = document
+    .getElementById("topic")
+    .value
+    .trim();
+
+  const maxResults = Number(
+    document.getElementById("maxResults").value
+  );
 
   if (!topic) {
-    statusEl.textContent = "Please enter a topic.";
+    statusEl.textContent =
+      "Please enter a topic.";
     return;
   }
 
   runButton.disabled = true;
-  statusEl.textContent = "Running research agent...";
+  statusEl.textContent =
+    "Running research agent...";
+
   resultsEl.classList.add("hidden");
 
   try {
-    const response = await fetch(AGENT_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        topic,
-        max_results: maxResults,
-      }),
-    });
+    const response = await fetch(
+      AGENT_ENDPOINT,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          topic,
+          max_results: maxResults,
+        }),
+      }
+    );
 
-    const payload = await response.json();
+    const payload =
+      await response.json();
 
     if (!response.ok) {
-      throw new Error(payload.error || "Agent request failed");
+      throw new Error(
+        payload.error ||
+          "Agent request failed"
+      );
     }
 
-    // const body = typeof payload.body === "string" ? JSON.parse(payload.body) : payload;
-    const body =
-      typeof payload.body === "string"
-        ? JSON.parse(payload.body)
-        : payload.body || payload;
-    
-    const summary = body.summary || {};
+    const summary =
+      payload.summary || {};
 
-    setSourceIndicators(body);
+    summaryText.textContent =
+      summary.summary ||
+      "No summary returned";
 
-    document.getElementById("summary").textContent =
-      summary.summary || summary.raw_model_output || "No summary returned";
+    addListItems(
+      keyThemesEl,
+      summary.key_themes || []
+    );
 
-    setList("themes", summary.key_themes);
-    setList("risks", summary.risks);
-    setList("opportunities", summary.opportunities);
-    setList("questions", summary.follow_up_questions);
-    setArticles(body.source_articles);
+    addListItems(
+      risksEl,
+      summary.risks || []
+    );
 
-    setRagContext(body.rag_context);
+    addListItems(
+      opportunitiesEl,
+      summary.opportunities || []
+    );
 
-    setHackerNews(body.hacker_news);
-    
-    setArxivPapers(body.arxiv_papers);
+    addListItems(
+      enterpriseRecommendationsEl,
+      summary.enterprise_recommendations ||
+        []
+    );
 
-    resultsEl.classList.remove("hidden");
-    statusEl.textContent = `Completed using ${body.model || "model"}.`;
+    addListItems(
+      followUpQuestionsEl,
+      summary.follow_up_questions || []
+    );
+
+    renderSourceArticles(
+      payload.source_articles || []
+    );
+
+    renderHackerNews(
+      payload.hacker_news || []
+    );
+
+    renderArxiv(
+      payload.arxiv_papers || []
+    );
+
+    renderRagContext(
+      payload.rag_context || []
+    );
+
+    const ragCount =
+      payload.rag_context?.length || 0;
+
+    const gnewsCount =
+      payload.source_articles?.length || 0;
+
+    const hnCount =
+      payload.hacker_news?.length || 0;
+
+    const arxivCount =
+      payload.arxiv_papers?.length || 0;
+
+    setBadge(
+      ragBadge,
+      `✓ RAG Knowledge Base used — ${ragCount} chunks retrieved`,
+      ragCount > 0
+    );
+
+    setBadge(
+      gnewsBadge,
+      `✓ GNews used — ${gnewsCount} articles returned`,
+      gnewsCount > 0
+    );
+
+    setBadge(
+      hnBadge,
+      `✓ Hacker News used — ${hnCount} items returned`,
+      hnCount > 0
+    );
+
+    setBadge(
+      arxivBadge,
+      `✓ arXiv used — ${arxivCount} papers returned`,
+      arxivCount > 0
+    );
+
+    resultsEl.classList.remove(
+      "hidden"
+    );
+
+    statusEl.textContent =
+      `Completed using ${payload.model || "AI model"}.`;
   } catch (error) {
-    statusEl.textContent = `Error: ${error.message}`;
+    statusEl.textContent =
+      `Error: ${error.message}`;
   } finally {
     runButton.disabled = false;
   }
