@@ -437,18 +437,18 @@ User question:
         }
 
 def handler(event, context):
-    print("V5A BUILD WITH HACKERNEWS + ARXIV")
+    print("V5B BUILD WITH TOOL SELECTION")
+
     try:
         body = parse_event_body(event)
 
         topic = body.get("topic", "agentic AI")
-
         max_results = int(body.get("max_results", 5))
 
         tool_plan = plan_tools_with_nova(topic)
         print(f"Tool plan: {json.dumps(tool_plan)}")
 
-       if tool_plan["use_gnews"]:
+        if tool_plan["use_gnews"]:
             try:
                 articles = fetch_news(topic, max_results)
             except Exception as news_error:
@@ -458,24 +458,23 @@ def handler(event, context):
                 )
                 articles = []
         else:
-                print("Planner skipped GNews")
-                articles = []
-
+            print("Planner skipped GNews")
             articles = []
-        
+
         print("ABOUT TO CALL HACKER NEWS")
-       if tool_plan["use_hacker_news"]:
+
+        if tool_plan["use_hacker_news"]:
             try:
                 hacker_news_items = fetch_hacker_news(topic, limit=5)
             except Exception as hn_error:
                 print(f"Hacker News lookup failed, continuing: {hn_error}")
                 hacker_news_items = []
-      else:
-                print("Planner skipped Hacker News")
-                hacker_news_items = [] 
-       
+        else:
+            print("Planner skipped Hacker News")
+            hacker_news_items = []
+
         print("HACKER NEWS CALL FINISHED")
-        
+
         if tool_plan["use_arxiv"]:
             try:
                 arxiv_items = fetch_arxiv(topic, limit=5)
@@ -486,7 +485,6 @@ def handler(event, context):
             print("Planner skipped arXiv")
             arxiv_items = []
 
-
         ai_summary, rag_context = summarise_with_nova(
             topic,
             articles,
@@ -494,7 +492,7 @@ def handler(event, context):
             arxiv_items,
             use_rag=tool_plan["use_rag"],
         )
-        
+
         print(f"Hacker News items returned: {len(hacker_news_items)}")
         print(f"arXiv items returned: {len(arxiv_items)}")
 
@@ -533,7 +531,6 @@ def handler(event, context):
                         }
                         for item in rag_context
                     ],
-
                     "hacker_news": hacker_news_items,
                     "arxiv_papers": arxiv_items,
                 }
