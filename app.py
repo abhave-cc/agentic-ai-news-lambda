@@ -245,13 +245,17 @@ def summarise_with_nova(
     articles: list,
     hacker_news_items: list,
     arxiv_items: list,
+    use_rag: bool = True,
 ) -> tuple:
-# def summarise_with_nova(topic: str, articles: list) -> tuple:
-    try:
-        rag_context = retrieve_context(topic)
 
-    except Exception as rag_error:
-        print(f"RAG retrieval failed, continuing without RAG: {rag_error}")
+    if use_rag:
+        try:
+            rag_context = retrieve_context(topic)
+        except Exception as rag_error:
+            print(f"RAG retrieval failed, continuing without RAG: {rag_error}")
+            rag_context = []
+    else:
+        print("Planner skipped RAG")
         rag_context = []
 
     article_text = "\n\n".join(
@@ -360,6 +364,78 @@ def parse_event_body(event) -> dict:
     return event
 
 
+def plan_tools_with_nova(topic: str) -> dict:
+    prompt = f"""
+You are a tool-selection planner for an enterprise AI research assistant.
+
+Available tools:
+- rag: internal enterprise knowledge base
+- gnews: current news
+- hacker_news: engineering community discussion
+- arxiv: research papers
+
+Decide which tools should be used for the user question.
+
+Rules:
+- Return valid JSON only.
+- Use this exact shape:
+{{
+  "use_rag": true,
+  "use_gnews": true,
+  "use_hacker_news": true,
+  "use_arxiv": true,
+  "reason": "short reason"
+}}
+- Use RAG when the question mentions internal guidance, landing zone, architecture, governance, policy, standards, or recommendations.
+- Use GNews when the question asks about latest, current, trends, market, news, industry developments, regulation, security developments.
+- Use Hacker News when the question asks about engineering sentiment, developer adoption, tools, frameworks, implementation, or community discussion.
+- Use arXiv when the question asks about research, papers, academic direction, emerging techniques, evaluation, RAG, agents, or model behaviour.
+- If unsure, use rag and gnews.
+
+User question:
+{topic}
+"""
+
+    try:
+        response = bedrock.converse(
+            modelId=MODEL_ID,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [{"text": prompt}],
+                }
+            ],
+            inferenceConfig={
+                "maxTokens": 300,
+                "temperature": 0.1,
+                "topP": 0.9,
+            },
+        )
+
+        output_text = response["output"]["message"]["content"][0]["text"]
+        plan = parse_model_json(output_text)
+
+        return {
+            "use_rag": bool(plan.get("use_rag", True)),
+            "use_gnews": bool(plan.get("use_gnews", True)),
+            "use_hacker_news": bool(plan.get("use_hacker_news", False)),
+            "use_arxiv": bool(plan.get("use_arxiv", False)),
+            "reason": plan.get(
+                "reason",
+                "Planner selected tools based on the question.",
+            ),
+        }
+
+    except Exception as error:
+        print(f"Tool planner failed, using safe default: {error}")
+        return {
+            "use_rag": True,
+            "use_gnews": True,
+            "use_hacker_news": False,
+            "use_arxiv": False,
+            "reason": "Planner failed; defaulted to RAG and GNews.",
+        }
+
 def handler(event, context):
     print("V5A BUILD WITH HACKERNEWS + ARXIV")
     try:
@@ -369,42 +445,56 @@ def handler(event, context):
 
         max_results = int(body.get("max_results", 5))
 
-        try:
-            articles = fetch_news(topic, max_results)
+        tool_plan = plan_tools_with_nova(topic)
+        print(f"Tool plan: {json.dumps(tool_plan)}")
 
-        except Exception as news_error:
-            print(
-                "GNews lookup failed, "
-                f"continuing with RAG-only answer: {news_error}"
-            )
+       if tool_plan["use_gnews"]:
+            try:
+                articles = fetch_news(topic, max_results)
+            except Exception as news_error:
+                print(
+                    "GNews lookup failed, "
+                    f"continuing without GNews: {news_error}"
+                )
+                articles = []
+        else:
+                print("Planner skipped GNews")
+                articles = []
 
             articles = []
         
         print("ABOUT TO CALL HACKER NEWS")
-        
-        try:
-            hacker_news_items = fetch_hacker_news(topic, limit=5)
-        except Exception as hn_error:
-            print(f"Hacker News lookup failed, continuing: {hn_error}")
-            hacker_news_items = []
-
+       if tool_plan["use_hacker_news"]:
+            try:
+                hacker_news_items = fetch_hacker_news(topic, limit=5)
+            except Exception as hn_error:
+                print(f"Hacker News lookup failed, continuing: {hn_error}")
+                hacker_news_items = []
+      else:
+                print("Planner skipped Hacker News")
+                hacker_news_items = [] 
+       
         print("HACKER NEWS CALL FINISHED")
         
-        try:
-            arxiv_items = fetch_arxiv(topic, limit=5)
-        except Exception as arxiv_error:
-            print(f"arXiv lookup failed, continuing: {arxiv_error}")
+        if tool_plan["use_arxiv"]:
+            try:
+                arxiv_items = fetch_arxiv(topic, limit=5)
+            except Exception as arxiv_error:
+                print(f"arXiv lookup failed, continuing: {arxiv_error}")
+                arxiv_items = []
+        else:
+            print("Planner skipped arXiv")
             arxiv_items = []
 
-       # ai_summary, rag_context = summarise_with_nova(topic, articles)
 
         ai_summary, rag_context = summarise_with_nova(
             topic,
             articles,
             hacker_news_items,
             arxiv_items,
+            use_rag=tool_plan["use_rag"],
         )
-
+        
         print(f"Hacker News items returned: {len(hacker_news_items)}")
         print(f"arXiv items returned: {len(arxiv_items)}")
 
@@ -415,6 +505,17 @@ def handler(event, context):
                 {
                     "topic": topic,
                     "model": MODEL_ID,
+                    "tool_plan": tool_plan,
+                    "tools_used": [
+                        tool
+                        for tool, used in {
+                            "rag": tool_plan["use_rag"],
+                            "gnews": tool_plan["use_gnews"],
+                            "hacker_news": tool_plan["use_hacker_news"],
+                            "arxiv": tool_plan["use_arxiv"],
+                        }.items()
+                        if used
+                    ],
                     "summary": ai_summary,
                     "source_articles": [
                         {
