@@ -3,3 +3,5 @@ requests
 awslambdaric
 pytest
 pypdf
+flask
+gunicorn
