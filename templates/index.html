@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    >
+
+    <title>Agentic News - Legacy EC2</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    >
+  </head>
+
+  <body>
+    <main class="page-shell">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Legacy EC2 demonstration</p>
+
+          <h1>Agentic News</h1>
+
+          <p class="subtitle">
+            Search recent news and internal knowledge using
+            Amazon Bedrock.
+          </p>
+        </div>
+
+        <div class="deployment-badge">
+          EC2 hosted
+        </div>
+      </header>
+
+      <section class="search-panel">
+        <label for="topic">
+          Research topic
+        </label>
+
+        <div class="search-row">
+          <input
+            id="topic"
+            type="text"
+            value="AWS container modernisation"
+            autocomplete="off"
+          >
+
+          <button
+            id="researchButton"
+            type="button"
+          >
+            Research
+          </button>
+        </div>
+
+        <p
+          id="status"
+          class="status"
+        >
+          Enter a topic and select Research.
+        </p>
+      </section>
+
+      <section
+        id="results"
+        class="results"
+        hidden
+      >
+        <div class="summary-card">
+          <div class="section-heading">
+            <h2>Executive summary</h2>
+
+            <span
+              id="modelBadge"
+              class="model-badge"
+            ></span>
+          </div>
+
+          <p id="summary"></p>
+        </div>
+
+        <div class="content-grid">
+          <section class="content-card">
+            <h2>Key themes</h2>
+            <ul id="keyThemes"></ul>
+          </section>
+
+          <section class="content-card">
+            <h2>Risks</h2>
+            <ul id="risks"></ul>
+          </section>
+
+          <section class="content-card">
+            <h2>Opportunities</h2>
+            <ul id="opportunities"></ul>
+          </section>
+
+          <section class="content-card">
+            <h2>Recommendations</h2>
+            <ul id="recommendations"></ul>
+          </section>
+        </div>
+
+        <section class="content-card full-width">
+          <h2>Follow-up questions</h2>
+          <ul id="followUpQuestions"></ul>
+        </section>
+
+        <section class="content-card full-width">
+          <div class="section-heading">
+            <h2>News sources</h2>
+
+            <span
+              id="sourceCount"
+              class="count-badge"
+            ></span>
+          </div>
+
+          <div id="sources"></div>
+        </section>
+
+        <section class="content-card full-width">
+          <div class="section-heading">
+            <h2>Internal knowledge used</h2>
+
+            <span
+              id="ragCount"
+              class="count-badge"
+            ></span>
+          </div>
+
+          <div id="ragSources"></div>
+        </section>
+      </section>
+    </main>
+
+    <script
+      src="{{ url_for('static', filename='app.js') }}"
+    ></script>
+  </body>
+</html>
