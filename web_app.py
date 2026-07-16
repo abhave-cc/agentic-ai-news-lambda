@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Any
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 
 from app import handler
 
@@ -21,127 +21,10 @@ logger = logging.getLogger(__name__)
 @app.get("/")
 def home():
     """
-    Simple browser interface for the EC2-hosted version.
+    Render the simple browser interface for the EC2-hosted application.
     """
 
-    return """
-    <!doctype html>
-    <html lang="en">
-      <head>
-        <meta charset="utf-8">
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1"
-        >
-
-        <title>Agentic News - Legacy EC2</title>
-
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.5;
-          }
-
-          input {
-            width: 70%;
-            padding: 10px;
-            font-size: 16px;
-          }
-
-          button {
-            padding: 10px 18px;
-            font-size: 16px;
-            cursor: pointer;
-          }
-
-          pre {
-            background: #f4f4f4;
-            border: 1px solid #dddddd;
-            padding: 16px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-          }
-
-          .subtitle {
-            color: #555555;
-          }
-        </style>
-      </head>
-
-      <body>
-        <h1>Agentic News</h1>
-
-        <p class="subtitle">
-          Legacy EC2-hosted demonstration version
-        </p>
-
-        <p>
-          Enter a topic to search recent news and internal RAG content.
-        </p>
-
-        <input
-          id="topic"
-          type="text"
-          value="AWS container modernisation"
-        >
-
-        <button onclick="runResearch()">
-          Research
-        </button>
-
-        <pre id="result">
-Enter a topic and select Research.
-        </pre>
-
-        <script>
-          async function runResearch() {
-            const topicInput = document.getElementById("topic");
-            const resultElement = document.getElementById("result");
-
-            const topic = topicInput.value.trim();
-
-            if (!topic) {
-              resultElement.textContent = "Please enter a topic.";
-              return;
-            }
-
-            resultElement.textContent = "Researching...";
-
-            try {
-              const response = await fetch("/api/research", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                  topic: topic,
-                  max_results: 5
-                })
-              });
-
-              const data = await response.json();
-
-              if (!response.ok) {
-                throw new Error(
-                  data.error || "The research request failed."
-                );
-              }
-
-              resultElement.textContent =
-                JSON.stringify(data, null, 2);
-
-            } catch (error) {
-              resultElement.textContent =
-                "Error: " + error.message;
-            }
-          }
-        </script>
-      </body>
-    </html>
-    """
+    return render_template("index.html")
 
 
 @app.get("/health")
