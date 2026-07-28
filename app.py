@@ -9,33 +9,96 @@ from rag import retrieve_context
 
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "eu-west-2")
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0")
+# GNEWS_SECRET_NAME = os.environ.get("GNEWS_SECRET_NAME", "agentic-ai/gnews")
 GNEWS_SECRET_NAME = os.environ.get("GNEWS_SECRET_NAME", "agentic-ai/gnews")
+GNEWS_API_KEY = os.environ.get("GNEWS_API_KEY")
 
 bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
 secretsmanager = boto3.client("secretsmanager", region_name=BEDROCK_REGION)
 
 
-def get_gnews_api_key() -> str:
-    secret = secretsmanager.get_secret_value(SecretId=GNEWS_SECRET_NAME)
-    secret_string = secret["SecretString"]
+def _extract_gnews_api_key(secret_string: str) -> str:
+    """
+    Extract the GNews API key from either:
 
+    1. A plain-text secret value, or
+    2. A JSON secret containing one of the recognised key names.
+    """
     try:
         secret_json = json.loads(secret_string)
-
-        api_key = (
-            secret_json.get("GNEWS_API_KEY")
-            or secret_json.get("api_key")
-            or secret_json.get("apikey")
-        )
+    except json.JSONDecodeError:
+        api_key = secret_string.strip()
 
         if not api_key:
-            raise ValueError("GNews API key not found in secret JSON.")
+            raise ValueError("The GNews API key is empty.")
 
         return api_key
 
-    except json.JSONDecodeError:
-        return secret_string
+    if not isinstance(secret_json, dict):
+        raise ValueError("The GNews secret JSON must contain an object.")
 
+    api_key = (
+        secret_json.get("GNEWS_API_KEY")
+        or secret_json.get("api_key")
+        or secret_json.get("apikey")
+    )
+
+    if not api_key or not isinstance(api_key, str):
+        raise ValueError("GNews API key not found in secret JSON.")
+
+    return api_key.strip()
+
+
+def get_gnews_api_key() -> str:
+    """
+    Resolve the GNews API key using either of the supported deployment modes.
+
+    Preferred ECS mode:
+        GNEWS_API_KEY contains the actual secret value injected by ECS from
+        AWS Secrets Manager.
+
+    Existing EC2/local mode:
+        GNEWS_SECRET_NAME contains the Secrets Manager secret name or ARN,
+        and the application retrieves the secret at runtime.
+
+    Compatibility mode:
+        Some generated ECS configurations inject the actual secret value into
+        GNEWS_SECRET_NAME. If GNEWS_API_KEY is absent, this function first
+        checks whether GNEWS_SECRET_NAME looks like a secret name/ARN. If it
+        does not, it treats the value as the API key.
+    """
+
+    # Cleanest ECS configuration: secret value injected into GNEWS_API_KEY.
+    if GNEWS_API_KEY:
+        return _extract_gnews_api_key(GNEWS_API_KEY)
+
+    configured_value = GNEWS_SECRET_NAME.strip()
+
+    if not configured_value:
+        raise ValueError(
+            "Neither GNEWS_API_KEY nor GNEWS_SECRET_NAME has been configured."
+        )
+
+    looks_like_secret_identifier = (
+        configured_value.startswith("arn:aws:secretsmanager:")
+        or configured_value.startswith("agentic-ai/")
+        or configured_value.startswith("/")
+    )
+
+    if looks_like_secret_identifier:
+        secret = secretsmanager.get_secret_value(SecretId=configured_value)
+        secret_string = secret.get("SecretString")
+
+        if not secret_string:
+            raise ValueError(
+                "The configured GNews secret does not contain SecretString."
+            )
+
+        return _extract_gnews_api_key(secret_string)
+
+    # Compatibility with AWS Transform injecting the actual secret value
+    # into GNEWS_SECRET_NAME.
+    return _extract_gnews_api_key(configured_value)
 
 def sanitize_gnews_query(query: str) -> str:
     cleaned = query.lower()
